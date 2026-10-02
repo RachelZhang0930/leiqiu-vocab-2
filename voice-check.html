@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>蕾丘英语 · 发音自检</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:24px 18px 40px;font:15px/1.6 system-ui,-apple-system,"PingFang SC",sans-serif;background:#f4f6fb;color:#17213d}
+.wrap{max-width:560px;margin:0 auto}
+h1{font-size:22px;margin:0 0 6px;color:#2449df}
+.lead{color:#6b7794;font-size:14px;margin:0 0 20px}
+.card{background:#fff;border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:0 2px 10px rgba(23,53,121,.06)}
+.card h2{font-size:16px;margin:0 0 4px}
+.card p{margin:0 0 12px;color:#6b7794;font-size:13px}
+button{width:100%;border:0;border-radius:12px;padding:14px;font-size:16px;font-weight:600;background:#2449df;color:#fff}
+button.ghost{background:#e8eeff;color:#2449df}
+button+button{margin-top:10px}
+.out{margin-top:12px;background:#f7f9fd;border-radius:12px;padding:12px;font:13px/1.7 ui-monospace,Menlo,monospace;white-space:pre-wrap;word-break:break-all;color:#31405f;min-height:20px}
+.ok{color:#0f6e56}.bad{color:#a32d2d}.warn{color:#854f0b}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>发音自检</h1>
+  <p class="lead">依次点下面三个按钮，把最后显示的结果截图发给我，就能定位问题。</p>
+
+  <div class="card">
+    <h2>第 1 步 · 检测环境</h2>
+    <p>看看这台设备支持不支持网页朗读、装了几个英文语音。</p>
+    <button onclick="checkEnv()">开始检测</button>
+    <div class="out" id="envOut">等待检测…</div>
+  </div>
+
+  <div class="card">
+    <h2>第 2 步 · 试听提示音</h2>
+    <p>会播放一声短促的"哔"。这一声和单词发音走的是同一条音量通道。</p>
+    <button class="ghost" onclick="beep()">播放提示音</button>
+    <div class="out" id="beepOut">等待播放…</div>
+  </div>
+
+  <div class="card">
+    <h2>第 3 步 · 试听英文单词</h2>
+    <p>会朗读 apple。这里能看出声音到底有没有"发出来"。</p>
+    <button class="ghost" onclick="testSpeak()">朗读 apple</button>
+    <div class="out" id="speakOut">等待朗读…</div>
+  </div>
+
+  <div class="card">
+    <h2>结论怎么读</h2>
+    <p id="conclusion">三步都做完后，这里会给出判断。</p>
+    <button class="ghost" id="copyBtn" onclick="copyAll()">一键复制结果（发给我）</button>
+  </div>
+</div>
+
+<script>
+var env = { ua: navigator.userAgent, support: false, voices: [], beepOk: null, speak: null };
+
+function setOut(id, text, cls) {
+  var el = document.getElementById(id);
+  el.textContent = text;
+  el.className = 'out' + (cls ? ' ' + cls : '');
+}
+
+function checkEnv() {
+  var lines = [];
+  var iOS = /iPhone|iPad|iPod/i.test(env.ua);
+  lines.push('设备：' + (iOS ? 'iPhone/iPad' : /Android/i.test(env.ua) ? 'Android' : '电脑'));
+  lines.push('浏览器：' + browserName(env.ua));
+  lines.push('系统版本：' + (env.ua.match(/OS (\d+[_\.]\d+)/) ? env.ua.match(/OS (\d+[_\.]\d+)/)[1].replace('_', '.') : '未知'));
+  var ok = ('speechSynthesis' in window) && (typeof SpeechSynthesisUtterance !== 'undefined');
+  env.support = ok;
+  lines.push('支持网页朗读：' + (ok ? '是' : '否 ← 这是没声音的根本原因'));
+  if (ok) {
+    var vs = window.speechSynthesis.getVoices() || [];
+    env.voices = vs;
+    lines.push('已装语音数量：' + vs.length);
+    if (!vs.length) lines.push('（语音列表还没加载出来，点第 3 步后会自动重试）');
+    vs.filter(function (v) { return /^en/i.test(v.lang); }).slice(0, 5).forEach(function (v) {
+      lines.push('英文语音：' + v.name + ' (' + v.lang + ')');
+    });
+  }
+  setOut('envOut', lines.join('\n'), ok ? 'ok' : 'bad');
+  updateConclusion();
+}
+
+function browserName(ua) {
+  if (/MicroMessenger/i.test(ua)) return '微信内置浏览器';
+  if (/EdgA?\//i.test(ua)) return 'Edge';
+  if (/CriOS/i.test(ua)) return 'Chrome (iOS)';
+  if (/FxiOS/i.test(ua)) return 'Firefox (iOS)';
+  if (/Chrome\//i.test(ua)) return 'Chrome';
+  if (/Safari\//i.test(ua)) return 'Safari';
+  return '未知';
+}
+
+function beep() {
+  try {
+    var Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) { setOut('beepOut', '这台设备不支持播放提示音，无法用这一步判断音量。', 'warn'); env.beepOk = null; updateConclusion(); return; }
+    var ctx = new Ctx();
+    if (ctx.state === 'suspended') ctx.resume();
+    var osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = 880;
+    gain.gain.value = 0.35;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    setTimeout(function () { osc.stop(); ctx.close(); }, 420);
+    env.beepOk = true;
+    setOut('beepOut', '提示音已播放。\n▸ 听到了 → 音量通道正常，问题在语音库。\n▸ 没听到 → 设备被静音（iPhone 请拨开侧面静音键、音量为 0 或连着蓝牙耳机）。', 'ok');
+  } catch (e) {
+    setOut('beepOut', '播放失败：' + e.message, 'bad');
+    env.beepOk = false;
+  }
+  updateConclusion();
+}
+
+function testSpeak() {
+  if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
+    setOut('speakOut', '这台设备不支持网页朗读，只能改用真人录音方案。', 'bad');
+    env.speak = 'unsupported';
+    updateConclusion();
+    return;
+  }
+  var sp = window.speechSynthesis;
+  var voices = sp.getVoices() || [];
+  var en = null;
+  for (var i = 0; i < voices.length; i++) { if (/^en/i.test(voices[i].lang)) { en = voices[i]; if (/^en[-_]US/i.test(voices[i].lang)) break; } }
+  var log = [];
+  log.push('语音列表：' + voices.length + ' 个' + (en ? '，选用 ' + en.name : '（没有英文语音）'));
+  var u = new SpeechSynthesisUtterance('apple');
+  if (en) { u.voice = en; u.lang = en.lang; } else { u.lang = 'en-US'; }
+  u.rate = 0.78;
+  var stage = 'none';
+  u.onstart = function () { stage = 'start'; log.push('状态：已开始播放（说明代码发出了声音）'); setOut('speakOut', log.join('\n'), 'ok'); };
+  u.onend = function () { stage = 'end'; log.push('状态：播放完成'); setOut('speakOut', log.join('\n'), 'ok'); env.speak = 'end'; updateConclusion(); };
+  u.onerror = function (e) {
+    stage = 'error';
+    env.speak = 'error';
+    log.push('错误码：' + (e && e.error ? e.error : '未知'));
+    log.push('提示：not-allowed 多为浏览器策略拦截，interrupted 多为被其他语音打断，synthesis-failed 多为系统语音库异常。');
+    setOut('speakOut', log.join('\n'), 'bad');
+    updateConclusion();
+  };
+  try { sp.cancel(); sp.resume(); } catch (e) { }
+  setTimeout(function () {
+    sp.speak(u);
+    setOut('speakOut', log.join('\n') + '\n已触发朗读…', 'warn');
+  }, 120);
+  setTimeout(function () {
+    if (stage === 'none') {
+      env.speak = 'silent';
+      log.push('状态：1.5 秒内没有开始播放（onstart 未触发）');
+      log.push('说明：声音没有被发出来，通常是这个浏览器的语音引擎不可用。');
+      setOut('speakOut', log.join('\n'), 'bad');
+      updateConclusion();
+    }
+  }, 1600);
+}
+
+function updateConclusion() {
+  var el = document.getElementById('conclusion');
+  var msgs = [];
+  if (env.support === false) {
+    msgs.push('<b>设备/浏览器不支持网页朗读</b>：这不是音量问题，只能换浏览器或改用真人录音。');
+  }
+  if (env.support === true && env.voices.length === 0) {
+    msgs.push('<b>没有装任何英文语音包</b>：系统语音库缺失，需在手机设置里下载英文语音，或改用真人录音。');
+  }
+  if (env.beepOk === true && env.speak === 'silent') {
+    msgs.push('<b>提示音听得见、单词读不出</b>：说明音量正常，是系统语音引擎的问题 → 建议改用真人录音。');
+  }
+  if (env.beepOk === true && env.speak === 'start') {
+    msgs.push('<b>代码已发出声音</b>：如果耳朵听不到，是设备静音或音频被路由到蓝牙耳机。');
+  }
+  if (env.beepOk === false) {
+    msgs.push('<b>提示音也听不见</b>：设备处于静音状态（iPhone 侧面静音键 / 媒体音量为 0 / 蓝牙耳机抢占）。');
+  }
+  if (env.speak === 'error') {
+    msgs.push('<b>朗读报错</b>：把上面的错误码发我，据此决定换浏览器还是改方案。');
+  }
+  if (env.speak === 'silent') {
+    msgs.push('<b>声音没有发出来</b>：这个浏览器的语音引擎不可用，网页朗读在这台设备上不工作。');
+    msgs.push(env.beepOk === true ? '提示音能听见 → 音量正常，问题出在语音引擎本身，建议改用真人录音。' : '请再点第 2 步确认提示音能否听见，以便排除音量问题。');
+  }
+  if ((env.speak === 'start' || env.speak === 'end') && env.beepOk === false) {
+    msgs.push('<b>代码已发出声音，但提示音也听不见</b> → 设备处于静音状态：iPhone 请拨开侧面静音键、调高媒体音量、断开蓝牙耳机。');
+  } else if (env.speak === 'end' && env.beepOk !== false) {
+    msgs.push('<b>朗读已正常完成</b>：说明这台设备的网页朗读是好的。如果耳朵没听到，90% 是静音键或蓝牙耳机抢占了声音——请先点第 2 步确认提示音能否听见。');
+  }
+  el.innerHTML = msgs.length ? msgs.join('<br>') : '三步都做完后，这里会给出判断。';
+}
+
+function copyAll() {
+  var text = ['【环境】' + document.getElementById('envOut').textContent,
+              '【提示音】' + document.getElementById('beepOut').textContent,
+              '【朗读】' + document.getElementById('speakOut').textContent,
+              '【判断】' + document.getElementById('conclusion').textContent].join('\n');
+  var done = function () { document.getElementById('copyBtn').textContent = '已复制 ✓ 发给老师即可'; };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text, done); });
+  } else { fallbackCopy(text, done); }
+}
+
+function fallbackCopy(text, done) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;top:-1000px';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); done(); } catch (e) { alert(text); }
+  document.body.removeChild(ta);
+}
+
+document.addEventListener('touchstart', function () {
+  if ('speechSynthesis' in window) window.speechSynthesis.onvoiceschanged = checkEnv;
+}, { once: true, passive: true });
+if ('speechSynthesis' in window) window.speechSynthesis.onvoiceschanged = checkEnv;
+setTimeout(checkEnv, 400);
+</script>
+</body>
+</html>
