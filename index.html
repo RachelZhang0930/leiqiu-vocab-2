@@ -3,10 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>蕾丘英语词汇通关</title>
 <meta name="description" content="上海中考、上教版与上外版高中英语词汇的每日学习、默写和间隔复习。">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232449df'/%3E%3Ctext x='9' y='24' font-size='25' fill='white'%3EL%3C/text%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.css?v=19">
+<link rel="stylesheet" href="style.css?v=22">
 </head>
 <body>
 <main>
@@ -198,11 +201,18 @@
 <p class="contact">学习反馈与课程咨询｜微信：17521631424</p>
 </footer>
 </main>
-<script src="words.js?v=20">
+<div id="loadIssue" class="load-issue" hidden role="alert">
+<b>词库资源没有加载完整</b>
+<span>请重新加载页面，学习记录不会丢失。</span>
+<button onclick="location.replace(location.pathname+'?refresh=22-'+Date.now())">重新加载</button>
+</div>
+<script>window.LEIQIU_APP_READY=false;window.addEventListener('error',function(e){if(e.target&&e.target.tagName==='SCRIPT'){var box=document.getElementById('loadIssue');if(box)box.hidden=false}},true);</script>
+<script src="words.js?v=22">
 </script>
-<script src="highschool-words.js?v=20">
+<script src="highschool-words.js?v=22">
 </script>
-<script src="app.js?v=20">
+<script src="app.js?v=22">
 </script>
+<script>setTimeout(function(){if(!window.LEIQIU_APP_READY){var box=document.getElementById('loadIssue');if(box)box.hidden=false}},8000);</script>
 </body>
 </html>
